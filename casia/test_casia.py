@@ -39,11 +39,7 @@ def de_diag(acc, each_angle=False):
 
 
 
-# def evaluate(model, test_loader, options, debug=False):
 def evaluate(model, test_loader, debug=False):
-
-    # contrastive_criterion = SupConLoss().cuda()
-
 
     feature_list = list()
     ids_list = list()
@@ -56,12 +52,6 @@ def evaluate(model, test_loader, debug=False):
         with open('casia_test_feats.pkl', 'rb') as f:
             obj = pickle.load(f)
         
-        # saved_obj = {
-        #     'features' : features,
-        #     'labels' : labels,
-        #     'angle_list' : angle_list,
-        #     'condition_list' : condition_list
-        # }
         features = obj['features']
         labels = obj['labels']
         angle_list = obj['angle_list']
@@ -75,9 +65,7 @@ def evaluate(model, test_loader, debug=False):
             running_loss = 0.0
 
             start = time.time()
-            # for i, (samples, ids, conditions, angles) in enumerate(test_loader):
             for i, data in enumerate(test_loader):
-                # print(i)
                 samples = data['data']
                 ids = data['pid']
                 conditions = data['condition']
@@ -86,7 +74,6 @@ def evaluate(model, test_loader, debug=False):
                 
                 # samples = samples.cuda()
                 ids_cuda = ids.cuda()
-                # with autocast():
 
                 features = []
                 for clips in samples:
@@ -97,19 +84,11 @@ def evaluate(model, test_loader, debug=False):
                     features.append(o)
                 features = torch.stack(features)
 
-                # batch, pos_samples, embedding_size
-                # features1 = features.view(features.shape[1], features.shape[0], 512)
                 features = features.permute(1, 0, 2)
 
-                # print(features.shape)
                 batch, p, _ = features.shape
 
-                # print(batch, p)
-                # exit()
-
                 features = torch.mean(features, dim=1)
-                # print(features.shape)
-                # (Batch, embed)
                 f = features.view(batch, -1)
                 
                 #Concat embed of all pos samples to get embed of final video 
@@ -120,14 +99,6 @@ def evaluate(model, test_loader, debug=False):
                 ids_list += ids
                 condition_list += conditions
                 angle_list += angles
-                # print(condition_list, angles.item())
-                # angle_list += angles[0].item()
-                # angle_list.append(angles.item())
-                
-                # if options['debug']:
-                #     print("Test Iter {}/{} complete".format(i+1, dataset_length), end = '\r', flush=options['debug'])
-
-            # total_loss = running_loss / dataset_length
 
         features = np.concatenate(feature_list, 0)
         # features is of size (num_sequences, embedding) - One embedding for every video in test set
@@ -153,9 +124,6 @@ def evaluate(model, test_loader, debug=False):
     view_num = len(angle_list)
     sample_num = len(features)
 
-    # dataset = options['dataset'].upper()
-
-    # if options['dataset'] == 'casia_rgb':
     dataset = 'CASIA'
 
 
@@ -197,19 +165,6 @@ def evaluate(model, test_loader, debug=False):
                     #Q: We are not considering full gallery set to compute the intermediate 'accuracy' variable in the commented code above. 
                     #A: Yes, we consider full gallery set. We take every person, but only some combinations of that person. We then take average of scores of diffferent combinations being in probe/gallery sets. A good model should still predict correctly 
         
-
-
-    # m = initialization(conf, test=opt.cache)[0]
-
-    # # load model checkpoint of iteration opt.iter
-    # print('Loading the model of iteration %d...' % opt.iter)
-    # m.load(opt.iter)
-    # print('Transforming...')
-    # time = datetime.now()
-    # test = m.transform('test', opt.batch_size)
-    # print('Evaluating...')
-    # acc = evaluation(test, conf['data'])
-    # print('Evaluation complete. Cost:', datetime.now() - time)
 
 
     scores = {}
@@ -262,9 +217,6 @@ def evaluate(model, test_loader, debug=False):
 
 
 if __name__ == '__main__':
-
-    # from models.c3d import C3D
-    # from models.r3d import R3DNet
     from models.r21d import R2Plus1DNet
     from models import r3d_pretrained, r21d_pretrained
 
@@ -272,7 +224,6 @@ if __name__ == '__main__':
     from torchvision import transforms
     from torch.utils.data import DataLoader, random_split
 
-    # from opts import MyArgParser
     device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
 
     print('Creating model...')
@@ -280,32 +231,24 @@ if __name__ == '__main__':
     parser.add_argument('--ckpt', type=str, default=None, help='checkpoint path')
     parser.add_argument('--model', type=str, help='model name')
     parser.add_argument('--seed', type=int, default=47, help='seed for initializing training.')
-    # parser.add_argument('--dataset_type', type=str, default='pad5', help='type of dataset used for training purpose')
     args = parser.parse_args()
+
     print(vars(args))
+    
     if args.model == 'r3d':
-        # model = R3DNet(layer_sizes=(1,1,1,1), with_classifier=True, num_classes=74).to(device)
         model = r3d_pretrained.generate_model(model_depth=18).to(device)
     elif args.model == 'r21d':
-        # model = R2Plus1DNet(layer_sizes=(1,1,1,1), with_classifier=True, num_classes=74).to(device)
         model = r21d_pretrained.generate_model(model_depth=18).to(device)
-    # model.fc = nn.Linear(512, 74).to(device)
     else:
         model = C3D(with_classifier=True, num_classes=74).to(device)
     model.fc = nn.Linear(512, 74).to(device)
-    # model.load_state_dict(torch.load(options['model_path']))
     print('Getting loader...')
-    # _, test_loader = get_loader(options=options)
 
     test_transforms = transforms.Compose([
             transforms.Resize((112, 112)),
-            # transforms.RandomCrop(112),
             transforms.ToTensor()
         ])
-    # if args.dataset_type == "nopad":
-    #     test_dataset = CasiabDataset('/home/akumar/gait_v1/casiab_movingavg_crops_nopad/video', 
-    #             16, '1', train=False, transforms_=test_transforms)
-    # elif args.dataset_type == "pad5":
+    
     test_dataset = CasiabDataset('/home/c3-0/datasets/casia-b/DatasetB_crops_v4/casiab_movingavg_crops_pad_5pixels/video', 
             16, '1', train=False, transforms_=test_transforms)
 
@@ -313,18 +256,12 @@ if __name__ == '__main__':
                                 num_workers=8, pin_memory=True)
     print(len(test_loader))
 
-    # print(model.fc.weight, len(model.fc.weight))
-    # print(model.layer4[1].bn2_t.weight, len(model.layer4[1].bn2_t.weight))
-    # print(model.fc.bias)
     if args.ckpt is not None:
         print("Loading weights...")
         model.load_state_dict(torch.load(args.ckpt), strict=True)
-    # print(model.layer4[1].bn2_t.weight, len(model.layer4[1].bn2_t.weight))
-    # print(model.fc.weight, len(model.fc.weight))
+    
     model.eval()
-    # print(model.layer4[1].bn2_t.weight, len(model.layer4[1].bn2_t.weight))
-    # print(model.fc.weight, len(model.fc.weight))
-    # exit()
     print('Evaluating....')
     scores = evaluate(model, test_loader, debug=False)
     print(scores)
+
