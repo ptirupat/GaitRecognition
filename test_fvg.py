@@ -4,7 +4,6 @@ import os
 import numpy as np
 
 import torch.nn.functional as F
-from loss import SupConLoss
 from sklearn.metrics import roc_curve, auc
 from torch.cuda.amp import autocast
 
